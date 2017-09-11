@@ -20,11 +20,7 @@ object DLUtils extends Logging{
     new DLInputDStream(dlUriStr: String,streamname: String, ssc: StreamingContext,3)
   }
   def createDLRDD(dlUriStr: String,streamname:String,sc:SparkContext):RDD[LogRecordWithDLSN] = {
-    val recordrange = 3
-    val uri: URI = URI.create(dlUriStr)
-    val config = new DistributedLogConfiguration()
-    val namespace = DistributedLogNamespaceBuilder.newBuilder().conf(config).uri(uri).build
-    val dlm: DistributedLogManager = namespace.openLog(streamname)
+    val recordrange = 20
     new DLRDD(sc,dlUriStr,streamname,recordrange)
   }
 

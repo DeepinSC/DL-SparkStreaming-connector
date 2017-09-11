@@ -1,7 +1,7 @@
 import com.myspark.DLconnector.DLUtils
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.streaming.{Seconds, StreamingContext}
-
+import java.nio.charset.StandardCharsets.UTF_8
 /**
   * Created by rick on 2017/9/7.
   */
@@ -22,19 +22,28 @@ object Main_process {
   }
 
 
+  def tmain(args: Array[String]): Unit = {
+    val sparkConf = new SparkConf().setAppName("KafkaWordCount").setMaster("local").set("spark.ui.port","7077");
+    val sc =  new SparkContext(sparkConf)
+    val rdd = sc.parallelize(Array(("s",1),("s",2)))
+    rdd.reduceByKey(_+_).foreach(x=>println(x))
+
+  }
+
+
   def main(args: Array[String]): Unit = {
     val sparkConf = new SparkConf().setAppName("KafkaWordCount").setMaster("local").set("spark.ui.port","7077");
     val sc =  new SparkContext(sparkConf)
     val dlUriStr = "distributedlog://127.0.0.1:7000/messaging/distributedlog"
     val streamname = "basic-stream-1"
     val stream = DLUtils.createDLRDD(dlUriStr,streamname,sc)
-    //stream.persist()
-    val misery = stream.map(LogRecord => LogRecord.getPayload)
-    val reco = misery.map(byterec => byterec)
-    reco.foreach(rec=>println(rec))
-    //val line = stream.foreach(x => println(x))
-    //val wordCounts = line.map(x => (x, 1L))
-    //  .reduceByKey(_ + _)
-    //println(wordCounts)
+
+    println("-----------<>-------------")
+    val line = stream.map(LogRecord => (new String(LogRecord.getPayload,UTF_8),1L)).reduceByKey(_+_)
+    println("-----------<>-------------")
+    line.foreach(x=>println(x))
+
+
+
   }
 }

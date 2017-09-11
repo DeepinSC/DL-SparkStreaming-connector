@@ -46,6 +46,7 @@ class DLRDD(sc: SparkContext,dlUriStr: String,streamname:String,val recordrange:
     val namespace = DistributedLogNamespaceBuilder.newBuilder().conf(config).uri(uri).build
     val dlm: DistributedLogManager = namespace.openLog(streamname)
     val firstTxid = dlm.getFirstTxId
+    dlm.close()
 
     val index = 0
     Array(new DLPartition(index,firstTxid,recordrange))
@@ -59,11 +60,11 @@ class DLRDD(sc: SparkContext,dlUriStr: String,streamname:String,val recordrange:
     val config = new DistributedLogConfiguration()
     val namespace = DistributedLogNamespaceBuilder.newBuilder().conf(config).uri(uri).build
     val dlm: DistributedLogManager = namespace.openLog(streamname)
-    val firstDLSN: DLSN = dlm.getFirstDLSNAsync.get()
+    val firstTxid = dlm.getFirstTxId()
+    var readcount = 0
 
-
-    val currentDLSN = firstDLSN
-    val reader: AsyncLogReader = FutureUtils.result(dlm.openAsyncLogReader(currentDLSN))
+    var currentTxid:Long = firstTxid
+    val reader: AsyncLogReader = FutureUtils.result(dlm.openAsyncLogReader(currentTxid))
 
     override def next(): LogRecordWithDLSN = {
 
@@ -86,12 +87,19 @@ class DLRDD(sc: SparkContext,dlUriStr: String,streamname:String,val recordrange:
       }
       val nextrecord = reader.readNext
       nextrecord.addEventListener(readListener)
-      nextrecord.get()
+      val record = nextrecord.get()
+      currentTxid = record.getSequenceId
+      readcount = readcount+1
+      record
     }
 
-    override def hasNext: Boolean = {
-      true
-    }
+    override def hasNext: Boolean =
+      if (readcount<recordrange){
+        true
+      }
+    else{
+        false
+      }
 
   }
 }

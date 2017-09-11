@@ -26,13 +26,6 @@ class DLInputDStream(dlUriStr: String,streamname:String,ssc:StreamingContext,rec
 
   }
 
-  override def stop(): Unit = this.synchronized{
-    val uri: URI = URI.create(dlUriStr)
-    val config = new DistributedLogConfiguration()
-    val namespace = DistributedLogNamespaceBuilder.newBuilder().conf(config).uri(uri).build
-    val dlm: DistributedLogManager = namespace.openLog(streamname)
-    val firstDLSN: DLSN = dlm.getFirstDLSNAsync.get()
-    dlm.close()
-    namespace.close()
+  override def stop(): Unit = this.synchronized {
   }
 }
