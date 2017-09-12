@@ -27,5 +27,6 @@ class DLInputDStream(dlUriStr: String,streamname:String,ssc:StreamingContext,rec
   }
 
   override def stop(): Unit = this.synchronized {
+
   }
 }

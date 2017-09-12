@@ -2,11 +2,12 @@ package com.myspark.DLconnector
 
 import java.net.URI
 import java.nio.charset.StandardCharsets.UTF_8
+import java.util.concurrent.TimeUnit
 
 import com.twitter.distributedlog.namespace.{DistributedLogNamespace, DistributedLogNamespaceBuilder}
 import com.twitter.distributedlog._
 import com.twitter.distributedlog.util.FutureUtils
-import com.twitter.util.FutureEventListener
+import com.twitter.util.{Duration, FutureEventListener}
 import org.apache.spark.internal.Logging
 import org.apache.spark.{Partition, SparkContext, TaskContext}
 import org.apache.spark.rdd.RDD
@@ -27,44 +28,72 @@ class DLRDD(sc: SparkContext,dlUriStr: String,streamname:String,val recordrange:
   }
 
   override def compute(split: Partition, context: TaskContext): Iterator[LogRecordWithDLSN] = {
-
     val part = split.asInstanceOf[DLPartition]
-    new DLIterator(part,context)
+    val result = new DLIterator(part,context)
+    //dlm.close()
+    //namespace.close()
+    result
   }
 
 
 
-  //LogRecordWithDLSN record = dlm.getLastLogRecord();
-  //DLSN lastDLSN = record.getDlsn();
-  //final AsyncLogReader reader = FutureUtils.result(dlm.openAsyncLogReader(lastDLSN));
 
+  val uri: URI = URI.create(dlUriStr)
+  //@transient val config = new DistributedLogConfiguration()
+  @transient private var namespace:DistributedLogNamespace = null//dlnamespace
+  @transient private var dlm: DistributedLogManager = null//dlmanager(namespace)
+
+  def dlnamespace():DistributedLogNamespace = this.synchronized{
+    val conf = new DistributedLogConfiguration()
+
+    namespace = DistributedLogNamespaceBuilder.newBuilder().conf(conf).uri(uri).build
+    namespace
+  }
+
+  def dlmanager(namespace:DistributedLogNamespace):DistributedLogManager = this.synchronized{
+    //val uri: URI = URI.create(dlUriStr)
+    dlm = namespace.openLog(streamname)
+    dlm
+  }
+  def dlfirsttxid(dlm:DistributedLogManager) = {
+    dlm.getFirstTxId
+  }
 
   override def getPartitions: Array[Partition] = {
-
-    val uri: URI = URI.create(dlUriStr)
-    val config = new DistributedLogConfiguration()
-    val namespace = DistributedLogNamespaceBuilder.newBuilder().conf(config).uri(uri).build
-    val dlm: DistributedLogManager = namespace.openLog(streamname)
-    val firstTxid = dlm.getFirstTxId
-    dlm.close()
-
+   // namespace = dlnamespace()
+    //dlm = dlmanager(namespace)
+    //val firstTxid = dlm.getFirstTxId
+    //dlm.close()
+    //namespace.close()
     val index = 0
-    Array(new DLPartition(index,firstTxid,recordrange))
+    Array(new DLPartition(index,recordrange))
   }
 
 
 
   private class DLIterator(part:DLPartition,context:TaskContext)extends Iterator[LogRecordWithDLSN]{
-
-    val uri: URI = URI.create(dlUriStr)
-    val config = new DistributedLogConfiguration()
-    val namespace = DistributedLogNamespaceBuilder.newBuilder().conf(config).uri(uri).build
-    val dlm: DistributedLogManager = namespace.openLog(streamname)
+    namespace = dlnamespace()
+    System.out.println("-----><-----")
+    dlm = dlmanager(namespace)
     val firstTxid = dlm.getFirstTxId()
     var readcount = 0
-
     var currentTxid:Long = firstTxid
     val reader: AsyncLogReader = FutureUtils.result(dlm.openAsyncLogReader(currentTxid))
+
+
+    context.addTaskCompletionListener{ context => closeIfNeeded() }
+
+    def closeIfNeeded(): Unit = {
+      if (readcount>=recordrange){
+        FutureUtils.result(reader.asyncClose())
+        //FutureUtils.result(reader.asyncClose(), Duration.apply(5, TimeUnit.SECONDS))
+        dlm.close()
+        System.out.println("----->close<-----")
+        namespace.close()
+
+
+      }
+    }
 
     override def next(): LogRecordWithDLSN = {
 
@@ -86,6 +115,7 @@ class DLRDD(sc: SparkContext,dlUriStr: String,streamname:String,val recordrange:
 
       }
       val nextrecord = reader.readNext
+
       nextrecord.addEventListener(readListener)
       val record = nextrecord.get()
       currentTxid = record.getSequenceId
