@@ -73,61 +73,75 @@ class DLRDD(sc: SparkContext,dlUriStr: String,streamname:String,val recordrange:
 
   private class DLIterator(part:DLPartition,context:TaskContext)extends Iterator[LogRecordWithDLSN]{
     namespace = dlnamespace()
-    System.out.println("-----><-----")
     dlm = dlmanager(namespace)
+
+    val recordnum = dlm.getLogRecordCount
+
     val firstTxid = dlm.getFirstTxId()
+
+
     var readcount = 0
     var currentTxid:Long = firstTxid
-    val reader: AsyncLogReader = FutureUtils.result(dlm.openAsyncLogReader(currentTxid))
-
+    //val reader: AsyncLogReader = FutureUtils.result(dlm.openAsyncLogReader(currentTxid))
+    val reader:LogReader = dlm.getInputStream(currentTxid)
 
     context.addTaskCompletionListener{ context => closeIfNeeded() }
 
     def closeIfNeeded(): Unit = {
-      if (readcount>=recordrange){
-        FutureUtils.result(reader.asyncClose())
-        //FutureUtils.result(reader.asyncClose(), Duration.apply(5, TimeUnit.SECONDS))
+      if (!hasNext()){
+
+        //reader.asyncClose()
+
+        //FutureUtils.result(reader.asyncClose())
+        //reader.wait(10)
+        //reader.close()
         dlm.close()
-        System.out.println("----->close<-----")
         namespace.close()
 
 
+
       }
+    }
+
+    val readListener = new FutureEventListener[LogRecordWithDLSN]() {
+
+      override def onFailure(cause: Throwable): Unit = { // executed when read failed.
+        System.out.println("read failed\n")
+        cause.printStackTrace(System.err)
+        Runtime.getRuntime.exit(0)
+      }
+
+      override def onSuccess(record: LogRecordWithDLSN): Unit = { // process the record
+        //System.out.println(">" + new String(record.getPayload, UTF_8))
+        //System.out.println(">" + record.toString)
+        // issue read next
+        //reader.readNext.addEventListener(this)
+
+      }
+
     }
 
     override def next(): LogRecordWithDLSN = {
+      assert(hasNext(), "Can't call getNext() once last record has been reached")
 
-      val readListener = new FutureEventListener[LogRecordWithDLSN]() {
+      //val nextrecord = reader.readNext
 
-        override def onFailure(cause: Throwable): Unit = { // executed when read failed.
-          System.out.println("read failed\n")
-          cause.printStackTrace(System.err)
-          Runtime.getRuntime.exit(0)
-        }
 
-        override def onSuccess(record: LogRecordWithDLSN): Unit = { // process the record
-          //System.out.println(">" + new String(record.getPayload, UTF_8))
-          //System.out.println(">" + record.toString)
-          // issue read next
-          //reader.readNext.addEventListener(this)
+      val nextrecord = reader.readNext(false)
 
-        }
-
-      }
-      val nextrecord = reader.readNext
-
-      nextrecord.addEventListener(readListener)
-      val record = nextrecord.get()
+      //nextrecord.addEventListener(readListener)
+      //val record = nextrecord.get()
+      val record = nextrecord
       currentTxid = record.getSequenceId
-      readcount = readcount+1
+      readcount +=1
       record
     }
 
-    override def hasNext: Boolean =
-      if (readcount<recordrange){
+    override def hasNext(): Boolean =
+      if (readcount<10){
         true
       }
-    else{
+      else{
         false
       }
 
