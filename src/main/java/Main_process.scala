@@ -22,16 +22,18 @@ object Main_process {
   }
 
 
-  def tmain(args: Array[String]): Unit = {
+  def main(args: Array[String]): Unit = {
     val sparkConf = new SparkConf().setAppName("KafkaWordCount").setMaster("local").set("spark.ui.port","7077");
     val sc =  new SparkContext(sparkConf)
-    val rdd = sc.parallelize(Array(("s",1),("s",2)))
-    rdd.reduceByKey(_+_).foreach(x=>println(x))
+    val dlUriStr = "distributedlog://127.0.0.1:7000/messaging/distributedlog"
+    val streamname = "basic-stream-1"
+    val mapp = DLUtils.getPartitionMap(dlUriStr,streamname)
+    mapp.foreach(x=>println(x))
 
   }
 
 
-  def main(args: Array[String]): Unit = {
+  def tmain(args: Array[String]): Unit = {
     val sparkConf = new SparkConf().setAppName("DLWordCount").setMaster("local").set("spark.ui.port","7077")
     val sc =  new SparkContext(sparkConf)
     val dlUriStr = "distributedlog://127.0.0.1:7000/messaging/distributedlog"

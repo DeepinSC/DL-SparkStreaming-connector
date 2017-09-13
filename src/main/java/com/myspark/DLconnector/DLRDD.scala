@@ -30,8 +30,6 @@ class DLRDD(sc: SparkContext,dlUriStr: String,streamname:String,val recordrange:
   override def compute(split: Partition, context: TaskContext): Iterator[LogRecordWithDLSN] = {
     val part = split.asInstanceOf[DLPartition]
     val result = new DLIterator(part,context)
-    //dlm.close()
-    //namespace.close()
     result
   }
 
@@ -39,32 +37,21 @@ class DLRDD(sc: SparkContext,dlUriStr: String,streamname:String,val recordrange:
 
 
   val uri: URI = URI.create(dlUriStr)
-  //@transient val config = new DistributedLogConfiguration()
-  @transient private var namespace:DistributedLogNamespace = null//dlnamespace
-  @transient private var dlm: DistributedLogManager = null//dlmanager(namespace)
 
   def dlnamespace():DistributedLogNamespace = this.synchronized{
     val conf = new DistributedLogConfiguration()
-
-    namespace = DistributedLogNamespaceBuilder.newBuilder().conf(conf).uri(uri).build
-    namespace
+      DistributedLogNamespaceBuilder.newBuilder().conf(conf).uri(uri).build
   }
 
   def dlmanager(namespace:DistributedLogNamespace):DistributedLogManager = this.synchronized{
-    //val uri: URI = URI.create(dlUriStr)
-    dlm = namespace.openLog(streamname)
-    dlm
+      namespace.openLog(streamname)
   }
+
   def dlfirsttxid(dlm:DistributedLogManager) = {
     dlm.getFirstTxId
   }
 
   override def getPartitions: Array[Partition] = {
-   // namespace = dlnamespace()
-    //dlm = dlmanager(namespace)
-    //val firstTxid = dlm.getFirstTxId
-    //dlm.close()
-    //namespace.close()
     val index = 0
     Array(new DLPartition(index,recordrange))
   }
@@ -72,8 +59,8 @@ class DLRDD(sc: SparkContext,dlUriStr: String,streamname:String,val recordrange:
 
 
   private class DLIterator(part:DLPartition,context:TaskContext)extends Iterator[LogRecordWithDLSN]{
-    namespace = dlnamespace()
-    dlm = dlmanager(namespace)
+    val namespace = dlnamespace()
+    val dlm = dlmanager(namespace)
 
     val recordnum = dlm.getLogRecordCount
 

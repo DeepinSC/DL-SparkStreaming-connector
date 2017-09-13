@@ -24,6 +24,23 @@ object DLUtils extends Logging{
     new DLRDD(sc,dlUriStr,streamname,recordrange)
   }
 
+
+  def getPartitionMap(dlUriStr: String,streamname:String):Map[Long,Int] = {
+    val uri: URI = URI.create(dlUriStr)
+    val conf = new DistributedLogConfiguration()
+    val namespace = DistributedLogNamespaceBuilder.newBuilder().conf(conf).uri(uri).build
+    val dlm = namespace.openLog(streamname)
+    val firsttxid = dlm.getFirstTxId
+    val recordcount = dlm.getLogRecordCount
+    val reader = dlm.getInputStream(firsttxid)
+    val bulk = reader.readBulk(false,recordcount.toInt)
+
+    val res = bulk.toArray.map{case(x:LogRecordWithDLSN)=>x.getTransactionId}.zipWithIndex.toMap
+    namespace.close()
+    res
+
+  }
+
 }
 
 
