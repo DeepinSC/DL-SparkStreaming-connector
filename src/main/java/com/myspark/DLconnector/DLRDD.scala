@@ -12,11 +12,13 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.{Partition, SparkContext, TaskContext}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.storage.StorageLevel
+import scala.collection.JavaConversions._
+
 
 /**
   * Created by rick on 2017/9/6.
   */
-class DLRDD(sc: SparkContext,dlUriStr: String,streamname:String,val recordrange:Int) extends RDD[LogRecordWithDLSN](sc,Nil) with Logging{
+class DLRDD(sc: SparkContext,dlUriStr: String,streamname:String,partMap:Map[Long,Int],maxrecperpart:Int) extends RDD[LogRecordWithDLSN](sc,Nil) with Logging{
 
 
 
@@ -29,8 +31,29 @@ class DLRDD(sc: SparkContext,dlUriStr: String,streamname:String,val recordrange:
 
   override def compute(split: Partition, context: TaskContext): Iterator[LogRecordWithDLSN] = {
     val part = split.asInstanceOf[DLPartition]
-    val result = new DLIterator(part,context)
-    result
+   // val result = new DLIterator(part,context)
+    
+    val namespace = dlnamespace()
+    val dlm = dlmanager(namespace)
+    val recordnum = part.length
+    val firstTxid = part.starttxid
+    val reader= dlm.getInputStream(firstTxid)
+    val bulk = reader.readBulk(false,recordnum)
+    val result  = bulk.iterator()
+    reader.close()
+    dlm.close()
+    namespace.close()
+
+    def closeIfNeeded(): Unit = {
+      if (result.length==recordnum){
+        reader.close()
+        dlm.close()
+        namespace.close()
+      }
+    }
+
+    //context.addTaskCompletionListener{ context => closeIfNeeded() }
+    bulk.iterator()
   }
 
 
@@ -52,85 +75,16 @@ class DLRDD(sc: SparkContext,dlUriStr: String,streamname:String,val recordrange:
   }
 
   override def getPartitions: Array[Partition] = {
-    val index = 0
-    Array(new DLPartition(index,recordrange))
+    //val index = 0
+    //Array(new DLPartition(index,maxrecperpart))
+    val lastidx = partMap.max._2
+    partMap.filter(pair=>(pair._2%maxrecperpart==0)).zipWithIndex.map{
+      case((txid,index),idx)=>
+        if (lastidx-index<maxrecperpart){new DLPartition(idx,lastidx-index+1,streamname,txid)}
+        else{new DLPartition(idx,maxrecperpart,streamname,txid)}
+    }.toArray
+    //Array(new DLPartition(0,0,streamname,maxrecperpart))
   }
 
 
-
-  private class DLIterator(part:DLPartition,context:TaskContext)extends Iterator[LogRecordWithDLSN]{
-    val namespace = dlnamespace()
-    val dlm = dlmanager(namespace)
-
-    val recordnum = dlm.getLogRecordCount
-
-    val firstTxid = dlm.getFirstTxId()
-
-
-    var readcount = 0
-    var currentTxid:Long = firstTxid
-    //val reader: AsyncLogReader = FutureUtils.result(dlm.openAsyncLogReader(currentTxid))
-    val reader:LogReader = dlm.getInputStream(currentTxid)
-
-    context.addTaskCompletionListener{ context => closeIfNeeded() }
-
-    def closeIfNeeded(): Unit = {
-      if (!hasNext()){
-
-        //reader.asyncClose()
-
-        //FutureUtils.result(reader.asyncClose())
-        //reader.wait(10)
-        //reader.close()
-        dlm.close()
-        namespace.close()
-
-
-
-      }
-    }
-
-    val readListener = new FutureEventListener[LogRecordWithDLSN]() {
-
-      override def onFailure(cause: Throwable): Unit = { // executed when read failed.
-        System.out.println("read failed\n")
-        cause.printStackTrace(System.err)
-        Runtime.getRuntime.exit(0)
-      }
-
-      override def onSuccess(record: LogRecordWithDLSN): Unit = { // process the record
-        //System.out.println(">" + new String(record.getPayload, UTF_8))
-        //System.out.println(">" + record.toString)
-        // issue read next
-        //reader.readNext.addEventListener(this)
-
-      }
-
-    }
-
-    override def next(): LogRecordWithDLSN = {
-      assert(hasNext(), "Can't call getNext() once last record has been reached")
-
-      //val nextrecord = reader.readNext
-
-
-      val nextrecord = reader.readNext(false)
-
-      //nextrecord.addEventListener(readListener)
-      //val record = nextrecord.get()
-      val record = nextrecord
-      currentTxid = record.getSequenceId
-      readcount +=1
-      record
-    }
-
-    override def hasNext(): Boolean =
-      if (readcount<10){
-        true
-      }
-      else{
-        false
-      }
-
-  }
 }

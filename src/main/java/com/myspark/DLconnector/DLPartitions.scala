@@ -6,7 +6,16 @@ import org.apache.spark.Partition
 /**
   * Created by rick on 2017/9/7.
   */
-private  class DLPartition(val index:Int,val recordrange:Int) extends Partition{
+
+class DLPartition(
+   val index:Int,
+   val length:Int,
+   val streamname:String,
+   val starttxid:Long
+                 ) extends Partition{
   //temp function
-  def count():Int = index
+  //def count():Int = index
+   def getindex(): Int ={
+    index
+  }
 }

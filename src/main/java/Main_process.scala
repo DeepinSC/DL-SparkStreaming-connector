@@ -22,18 +22,19 @@ object Main_process {
   }
 
 
-  def main(args: Array[String]): Unit = {
+  def tmain(args: Array[String]): Unit = {
     val sparkConf = new SparkConf().setAppName("KafkaWordCount").setMaster("local").set("spark.ui.port","7077");
     val sc =  new SparkContext(sparkConf)
     val dlUriStr = "distributedlog://127.0.0.1:7000/messaging/distributedlog"
     val streamname = "basic-stream-1"
+    val maxpart = 8
     val mapp = DLUtils.getPartitionMap(dlUriStr,streamname)
-    mapp.foreach(x=>println(x))
-
+    mapp.filter(p=>(p._2%maxpart==0)).zipWithIndex.foreach(x=>println(x))
+    //print(mapp.max)
   }
 
 
-  def tmain(args: Array[String]): Unit = {
+  def main(args: Array[String]): Unit = {
     val sparkConf = new SparkConf().setAppName("DLWordCount").setMaster("local").set("spark.ui.port","7077")
     val sc =  new SparkContext(sparkConf)
     val dlUriStr = "distributedlog://127.0.0.1:7000/messaging/distributedlog"
@@ -41,7 +42,7 @@ object Main_process {
     val rdd = DLUtils.createDLRDD(dlUriStr,streamname,sc)
     val line = rdd.map(LogRecord => (new String(LogRecord.getPayload,UTF_8),1L)).reduceByKey(_+_)
     line.foreach(x=>println(x))
-
+    println(rdd.getNumPartitions)
 
 
   }

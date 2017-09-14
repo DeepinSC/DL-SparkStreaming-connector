@@ -20,8 +20,9 @@ object DLUtils extends Logging{
     new DLInputDStream(dlUriStr: String,streamname: String, ssc: StreamingContext,3)
   }
   def createDLRDD(dlUriStr: String,streamname:String,sc:SparkContext):RDD[LogRecordWithDLSN] = {
-    val recordrange = 10
-    new DLRDD(sc,dlUriStr,streamname,recordrange)
+    val partMap = getPartitionMap(dlUriStr,streamname)
+    val maxrecperpart = 20
+    new DLRDD(sc,dlUriStr,streamname,partMap,maxrecperpart)
   }
 
 
