@@ -17,18 +17,18 @@ import org.apache.spark.streaming.dstream.InputDStream
  */
 object DLUtils extends Logging{
   def createDLStream(dlUriStr: String,streamname:String,ssc:StreamingContext):InputDStream[LogRecordWithDLSN] = {
-    new DLInputDStream(dlUriStr: String,streamname: String, ssc: StreamingContext,3)
+    new DLInputDStream(dlUriStr: String,streamname: String, ssc: StreamingContext,3,2)
   }
   def createDLRDD(dlUriStr: String,streamname:String,sc:SparkContext):RDD[LogRecordWithDLSN] = {
     val partMap = getPartitionMap(dlUriStr,streamname)
-    val maxrecperpart = 20
+    val maxrecperpart = 50
     new DLRDD(sc,dlUriStr,streamname,partMap,maxrecperpart)
   }
 
 
   def getPartitionMap(dlUriStr: String,streamname:String):Map[Long,Int] = {
     val uri: URI = URI.create(dlUriStr)
-    val conf = new DistributedLogConfiguration()
+    val conf = new DistributedLogConfiguration().setEnableReadAhead(false)
     val namespace = DistributedLogNamespaceBuilder.newBuilder().conf(conf).uri(uri).build
     val dlm = namespace.openLog(streamname)
     val firsttxid = dlm.getFirstTxId
@@ -37,6 +37,7 @@ object DLUtils extends Logging{
     val bulk = reader.readBulk(false,recordcount.toInt)
 
     val res = bulk.toArray.map{case(x:LogRecordWithDLSN)=>x.getTransactionId}.zipWithIndex.toMap
+    reader.close()
     namespace.close()
     res
 

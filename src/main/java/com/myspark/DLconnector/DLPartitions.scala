@@ -18,4 +18,5 @@ class DLPartition(
    def getindex(): Int ={
     index
   }
+  def getstarttxid:Long = starttxid
 }

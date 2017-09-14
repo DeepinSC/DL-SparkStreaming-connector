@@ -32,28 +32,32 @@ class DLRDD(sc: SparkContext,dlUriStr: String,streamname:String,partMap:Map[Long
   override def compute(split: Partition, context: TaskContext): Iterator[LogRecordWithDLSN] = {
     val part = split.asInstanceOf[DLPartition]
    // val result = new DLIterator(part,context)
-    
-    val namespace = dlnamespace()
-    val dlm = dlmanager(namespace)
+   //context.addTaskCompletionListener{ context => closeIfNeeded() }
     val recordnum = part.length
     val firstTxid = part.starttxid
-    val reader= dlm.getInputStream(firstTxid)
-    val bulk = reader.readBulk(false,recordnum)
-    val result  = bulk.iterator()
-    reader.close()
-    dlm.close()
-    namespace.close()
+    val namespace = dlnamespace(recordnum)
+    val dlm = dlmanager(namespace)
+    val lasttxid = dlm.getLastTxId
+    if (lasttxid==partMap.max._1)
+      Iterator.empty
+    else {
+      val reader = dlm.getInputStream(firstTxid)
+      val bulk = reader.readBulk(false, recordnum)
+      val result = bulk.iterator()
+      reader.close()
+      dlm.close()
+      namespace.close()
 
-    def closeIfNeeded(): Unit = {
-      if (result.length==recordnum){
-        reader.close()
-        dlm.close()
-        namespace.close()
+      def closeIfNeeded(): Unit = {
+        if (result.length == recordnum) {
+          reader.close()
+          dlm.close()
+          namespace.close()
+        }
       }
-    }
 
-    //context.addTaskCompletionListener{ context => closeIfNeeded() }
-    bulk.iterator()
+      bulk.iterator()
+    }
   }
 
 
@@ -61,13 +65,14 @@ class DLRDD(sc: SparkContext,dlUriStr: String,streamname:String,partMap:Map[Long
 
   val uri: URI = URI.create(dlUriStr)
 
-  def dlnamespace():DistributedLogNamespace = this.synchronized{
-    val conf = new DistributedLogConfiguration()
+  def dlnamespace(recordnum:Int):DistributedLogNamespace = this.synchronized{
+    val conf = new DistributedLogConfiguration().setEnableReadAhead(false)//.setReadAheadMaxRecords(recordnum)
       DistributedLogNamespaceBuilder.newBuilder().conf(conf).uri(uri).build
   }
 
   def dlmanager(namespace:DistributedLogNamespace):DistributedLogManager = this.synchronized{
-      namespace.openLog(streamname)
+      val dlm = namespace.openLog(streamname)
+      dlm
   }
 
   def dlfirsttxid(dlm:DistributedLogManager) = {
@@ -78,13 +83,13 @@ class DLRDD(sc: SparkContext,dlUriStr: String,streamname:String,partMap:Map[Long
     //val index = 0
     //Array(new DLPartition(index,maxrecperpart))
     val lastidx = partMap.max._2
-    partMap.filter(pair=>(pair._2%maxrecperpart==0)).zipWithIndex.map{
+    val zippedMap = partMap.filter(pair=>(pair._2%maxrecperpart==0)).zipWithIndex
+      zippedMap.map{
       case((txid,index),idx)=>
         if (lastidx-index<maxrecperpart){new DLPartition(idx,lastidx-index+1,streamname,txid)}
         else{new DLPartition(idx,maxrecperpart,streamname,txid)}
-    }.toArray
-    //Array(new DLPartition(0,0,streamname,maxrecperpart))
-  }
+    }.toArray.sortBy(x=>x.index).asInstanceOf[Array[Partition]]
 
 
+   }
 }
