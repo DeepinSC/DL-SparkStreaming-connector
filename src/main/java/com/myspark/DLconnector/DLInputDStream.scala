@@ -16,14 +16,12 @@ class DLInputDStream(dlUriStr: String,streamname:String,ssc:StreamingContext,max
 
 
 
-  def getPartitionList(dlm: DistributedLogManager,recordcount:Long,fromtxid:Long):List[Long] = {
+  def getPartitionList(recordcount:Long,fromtxid:Long):List[Long] = {
 
-    val reader = dlm.getInputStream(fromtxid)
-    //val bulk = reader.readBulk(false,recordcount.toInt)
-    //val res = bulk.toArray.map{case(x:LogRecordWithDLSN)=>x.getTransactionId}.zipWithIndex.toMap
+
+
     val res = (fromtxid to fromtxid+recordcount-1).toList
-    //namespace.close()
-    //reader.close()
+
     res
 
   }
@@ -42,9 +40,11 @@ class DLInputDStream(dlUriStr: String,streamname:String,ssc:StreamingContext,max
     val lasttxid = dlm.getLastTxId
     val recordcount = Array(maxrecperpart*maxpartperRDD,lasttxid-current_fromtxid+1).min
 
+    val txidList = getPartitionList(recordcount,current_fromtxid)
 
-    val txidList = getPartitionList(dlm,recordcount,current_fromtxid)
-    val rdd = new DLRDD(context.sparkContext,dlUriStr,streamname,txidList,maxrecperpart,firsttxid)
+    val sc = context.sparkContext
+    sc.setLogLevel("Error")
+    val rdd = new DLRDD(sc,dlUriStr,streamname,txidList,maxrecperpart,firsttxid)
     current_fromtxid+=recordcount.toInt
     Some(rdd)
   }
