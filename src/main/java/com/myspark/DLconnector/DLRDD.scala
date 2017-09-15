@@ -18,7 +18,7 @@ import scala.collection.JavaConversions._
 /**
   * Created by rick on 2017/9/6.
   */
-class DLRDD(sc: SparkContext,dlUriStr: String,streamname:String,partMap:Map[Long,Int],maxrecperpart:Int) extends RDD[LogRecordWithDLSN](sc,Nil) with Logging{
+class DLRDD(sc: SparkContext,dlUriStr: String,streamname:String,txidList:List[Long],maxrecperpart:Int,firsttxid:Long) extends RDD[LogRecordWithDLSN](sc,Nil) with Logging{
 
 
 
@@ -37,8 +37,8 @@ class DLRDD(sc: SparkContext,dlUriStr: String,streamname:String,partMap:Map[Long
     val firstTxid = part.starttxid
     val namespace = dlnamespace(recordnum)
     val dlm = dlmanager(namespace)
-    val lasttxid = dlm.getLastTxId
-    if (lasttxid==partMap.max._1)
+    //val lasttxid = dlm.getLastTxId
+    if (txidList.isEmpty)
       Iterator.empty
     else {
       val reader = dlm.getInputStream(firstTxid)
@@ -82,14 +82,25 @@ class DLRDD(sc: SparkContext,dlUriStr: String,streamname:String,partMap:Map[Long
   override def getPartitions: Array[Partition] = {
     //val index = 0
     //Array(new DLPartition(index,maxrecperpart))
-    val lastidx = partMap.max._2
-    val zippedMap = partMap.filter(pair=>(pair._2%maxrecperpart==0)).zipWithIndex
-      zippedMap.map{
-      case((txid,index),idx)=>
-        if (lastidx-index<maxrecperpart){new DLPartition(idx,lastidx-index+1,streamname,txid)}
-        else{new DLPartition(idx,maxrecperpart,streamname,txid)}
-    }.toArray.sortBy(x=>x.index).asInstanceOf[Array[Partition]]
+    if (txidList.isEmpty){
+      Array(new DLPartition(0,0,streamname,-1))
+    }
+    else {
+      val lastidx = txidList.max
+      val zippedMap = txidList.filter(txid => ((txid-firsttxid) % maxrecperpart == 0)).zipWithIndex.map {
+        case (txid, idx) =>
+          if (lastidx - txid < maxrecperpart) {
+            new DLPartition(idx, (lastidx - txid).toInt + 1, streamname, txid)
+          }
+          else {
+            new DLPartition(idx, maxrecperpart, streamname, txid)
+          }
+      }.toArray.sortBy(x => x.index).asInstanceOf[Array[Partition]]
+      zippedMap
+    }
 
 
    }
+
+
 }

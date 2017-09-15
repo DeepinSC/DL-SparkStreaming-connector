@@ -17,27 +17,28 @@ import org.apache.spark.streaming.dstream.InputDStream
  */
 object DLUtils extends Logging{
   def createDLStream(dlUriStr: String,streamname:String,ssc:StreamingContext):InputDStream[LogRecordWithDLSN] = {
-    new DLInputDStream(dlUriStr: String,streamname: String, ssc: StreamingContext,3,2)
+    new DLInputDStream(dlUriStr: String,streamname: String, ssc: StreamingContext, 3,2,1)
   }
   def createDLRDD(dlUriStr: String,streamname:String,sc:SparkContext):RDD[LogRecordWithDLSN] = {
-    val partMap = getPartitionMap(dlUriStr,streamname)
+    val txidList = getPartitionList(dlUriStr,streamname)
     val maxrecperpart = 50
-    new DLRDD(sc,dlUriStr,streamname,partMap,maxrecperpart)
+    val firsttxid  = 0
+    new DLRDD(sc,dlUriStr,streamname,txidList,maxrecperpart,firsttxid)
   }
 
 
-  def getPartitionMap(dlUriStr: String,streamname:String):Map[Long,Int] = {
+  def getPartitionList(dlUriStr: String,streamname:String):List[Long] = {
     val uri: URI = URI.create(dlUriStr)
     val conf = new DistributedLogConfiguration().setEnableReadAhead(false)
     val namespace = DistributedLogNamespaceBuilder.newBuilder().conf(conf).uri(uri).build
     val dlm = namespace.openLog(streamname)
     val firsttxid = dlm.getFirstTxId
-    val recordcount = dlm.getLogRecordCount
-    val reader = dlm.getInputStream(firsttxid)
-    val bulk = reader.readBulk(false,recordcount.toInt)
+    val lasttxid = dlm.getLastTxId
 
-    val res = bulk.toArray.map{case(x:LogRecordWithDLSN)=>x.getTransactionId}.zipWithIndex.toMap
-    reader.close()
+
+    // for test
+
+    val res = (firsttxid to lasttxid).toList
     namespace.close()
     res
 

@@ -26,8 +26,8 @@ object Main_process {
     val sc =  new SparkContext(sparkConf)
 
     val maxpart = 8
-    val mapp = DLUtils.getPartitionMap(dlUriStr,streamname)
-    mapp.filter(p=>(p._2%maxpart==0)).zipWithIndex.foreach(x=>println(x))
+    val mapp = DLUtils.getPartitionList(dlUriStr,streamname)
+    mapp.filter(p=>(p%maxpart==0)).zipWithIndex.foreach(x=>println(x))
     //print(mapp.max)
   }
 
