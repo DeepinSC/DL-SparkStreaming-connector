@@ -13,8 +13,8 @@ object DLRDD_test {
   def main(args: Array[String]): Unit = {
     val sparkConf = new SparkConf().setAppName("DLWordCount").setMaster("local").set("spark.ui.port","7077")
     val sc =  new SparkContext(sparkConf)
-    sc.setLogLevel("WARN")
-    val rdd = DLUtils.createDLRDD(dlUriStr,streamname,sc)
+    sc.setLogLevel("ERROR")
+    val rdd = DLUtils.createDLRDD(dlUriStr,streamname,sc,50,0)
     val line = rdd.map(LogRecord => (new String(LogRecord.getPayload,UTF_8),1L)).reduceByKey(_+_)
     line.foreach(x=>println(x))
     println((">>>Total records processed:"+rdd.count())+"<<<")
