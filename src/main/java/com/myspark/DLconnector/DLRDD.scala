@@ -29,7 +29,6 @@ class DLRDD(sc: SparkContext,dlUriStr: String,streamname:String,txidList:List[Lo
     val part = split.asInstanceOf[DLPartition]
     val recordnum = part.length
     val firstTxid = part.starttxid
-    println("|recnum,frtid:"+recordnum,firstTxid+"|")
     val namespace = dlnamespace(recordnum)
     val dlm = dlmanager(namespace)
     if (recordnum==0){
@@ -41,7 +40,6 @@ class DLRDD(sc: SparkContext,dlUriStr: String,streamname:String,txidList:List[Lo
       reader.close()
       dlm.close()
       namespace.close()
-      bulk.foreach(rec=>println(">>"+new String(rec.getPayload)))
       bulk
     }
   }

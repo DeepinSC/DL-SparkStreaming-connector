@@ -35,9 +35,9 @@ class DLInputDStream(dlUriStr: String,streamname:String,ssc:StreamingContext,max
     val namespace = DistributedLogNamespaceBuilder.newBuilder().conf(conf).uri(uri).build
     val dlm = namespace.openLog(streamname)
     val recordcount = Array(maxrecperpart*maxpartperRDD,(dlm.getLastTxId-current_fromtxid+1)).min
-    println(">"+recordcount)
+    //println(">"+recordcount)
     val txidList = getPartitionList(recordcount,current_fromtxid)
-    println("txidlist:"+txidList)
+
 
     //dlm.close()
     //namespace.close()
@@ -45,7 +45,6 @@ class DLInputDStream(dlUriStr: String,streamname:String,ssc:StreamingContext,max
     val sc = context.sparkContext
     sc.setLogLevel("Error")
     val rdd = new DLRDD(sc,dlUriStr,streamname,txidList,maxrecperpart,firsttxid)
-    //rdd.foreach(rec=>println(">>"+new String(rec.getPayload)))
     current_fromtxid+=recordcount.toInt
     Some(rdd)
   }

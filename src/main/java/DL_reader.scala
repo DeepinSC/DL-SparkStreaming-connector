@@ -16,15 +16,13 @@ object DL_reader {
     val conf = new DistributedLogConfiguration
     val namespace = DistributedLogNamespaceBuilder.newBuilder.conf(conf).uri(uri).build
     val dlm = namespace.openLog("basic-stream-3")
-    //LogRecordWithDLSN record = dlm.getLastLogRecord();
-    //DLSN lastDLSN = record.getDlsn();
-    //final AsyncLogReader reader = FutureUtils.result(dlm.openAsyncLogReader(lastDLSN));
+
     val firstDLSN = dlm.getFirstDLSNAsync.get
-    //val reader = FutureUtils.result(dlm.openAsyncLogReader(firstDLSN))
+
     val reader = dlm.getInputStream(130)
     val lasttxid = dlm.getLastTxId
     val bulk = reader.readBulk(false,(lasttxid-130).toInt)
-    //Future<LogRecordWithDLSN> readFuture = reader.readNext();
+
     val readListener = new FutureEventListener[LogRecordWithDLSN]() {
       override def onFailure(cause: Throwable): Unit = { // executed when read failed.
         System.out.println("read failed\n")
