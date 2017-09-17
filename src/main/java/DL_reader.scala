@@ -11,7 +11,7 @@ import com.twitter.util.FutureEventListener
   */
 object DL_reader {
   def main(args: Array[String]): Unit = {
-    val dlUriStr = "distributedlog://127.0.0.1:7000/messaging/distributedlog"
+    val dlUriStr = "distributedlog://127.0.0.1:7000/messaging/my_namespace"
     val uri = URI.create(dlUriStr)
     val conf = new DistributedLogConfiguration
     val namespace = DistributedLogNamespaceBuilder.newBuilder.conf(conf).uri(uri).build

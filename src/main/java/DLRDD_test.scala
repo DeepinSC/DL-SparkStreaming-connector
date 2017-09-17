@@ -8,7 +8,7 @@ import org.apache.spark.{SparkConf, SparkContext}
   * Created by rick on 2017/9/15.
   */
 object DLRDD_test {
-  val dlUriStr = "distributedlog://127.0.0.1:7000/messaging/distributedlog"
+  val dlUriStr = "distributedlog://127.0.0.1:7000/messaging/my_namespace"
   val streamname = "basic-stream-2"
   def main(args: Array[String]): Unit = {
     val sparkConf = new SparkConf().setAppName("DLWordCount").setMaster("local").set("spark.ui.port","7077")
