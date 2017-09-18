@@ -35,7 +35,6 @@ class DLInputDStream(dlUriStr: String,streamname:String,ssc:StreamingContext,max
     val namespace = DistributedLogNamespaceBuilder.newBuilder().conf(conf).uri(uri).build
     val dlm = namespace.openLog(streamname)
     val recordcount = Array(maxrecperpart*maxpartperRDD,(dlm.getLastTxId-current_fromtxid+1)).min
-    //println(">"+recordcount)
     val txidList = getPartitionList(recordcount,current_fromtxid)
 
 

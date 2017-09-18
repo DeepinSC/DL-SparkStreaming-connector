@@ -22,7 +22,7 @@ public class ConsoleWriter {
     public static void main(String[] args) throws Exception {
 
 
-        String dlUriStr = "distributedlog://127.0.0.1:7000/messaging/distributedlog";
+        String dlUriStr = "distributedlog://127.0.0.1:7000/messaging/my_namespace";
         final String streamName = "basic-stream-2";
 
         URI uri = URI.create(dlUriStr);
