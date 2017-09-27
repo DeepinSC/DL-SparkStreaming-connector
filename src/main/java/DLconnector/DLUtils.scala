@@ -25,6 +25,11 @@ object DLUtils extends Logging{
 
     new DLInputDStream(dlUriStr: String, streamname, ssc, maxpartperRDD,maxrecperpart,firsttxid)
   }
+
+  def createDLStream(dlUriStr: String,ssc:StreamingContext):InputDStream[LogRecordWithDLSN] = {
+    new DLMultiInputDStream(dlUriStr,ssc)
+  }
+
   def createDLRDD(dlUriStr: String,
                   streamname:String,
                   sc:SparkContext,
@@ -48,6 +53,9 @@ object DLUtils extends Logging{
 
     val txidList = getPartitionList()
     new DLRDD(sc,dlUriStr,streamname,txidList,maxrecperpart,firsttxid)
+
+
+    /*DLStream with multiple logstreams*/
 
   }
 

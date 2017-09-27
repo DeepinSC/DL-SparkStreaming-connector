@@ -31,6 +31,7 @@ class DLRDD(sc: SparkContext, dlUriStr: String, streamname:String, txidList:List
     val firstTxid = part.starttxid
     val namespace = dlnamespace(recordnum)
     val dlm = dlmanager(namespace)
+
     if (recordnum==0){
       Iterator.empty
     }

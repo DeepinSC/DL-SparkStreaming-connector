@@ -10,7 +10,7 @@ import org.apache.spark.streaming.{Seconds, StreamingContext}
 object DLStream_test {
 
 
-  def main(args: Array[String]): Unit = {
+  def tmain(args: Array[String]): Unit = {
     if(args.length<5){
       System.err.println("Error: 5 parameter needed!")
       System.exit(1)
@@ -22,6 +22,24 @@ object DLStream_test {
     val ssc =  new StreamingContext(sparkConf, Seconds(2))
     ssc.checkpoint("checkpoint")
     val stream = DLUtils.createDLStream(dlUriStr,streamname,ssc,maxPartitions.toInt,maxRecordPerPart.toInt,fromTxid.toInt)
+    val line = stream.flatMap(LogRecord => (new String(LogRecord.getPayload,UTF_8)).split(" ")).map(rec=> (rec,1)).reduceByKey(_+_)
+    line.print()
+    ssc.start()
+    ssc.awaitTermination()
+  }
+
+  def main(args: Array[String]): Unit = {
+    if(args.length<5){
+      System.err.println("Error: 5 parameter needed!")
+      System.exit(1)
+    }
+
+    val dlUriStr = "distributedlog://127.0.0.1:7001/messaging/my_namespace"
+
+    val sparkConf = new SparkConf().setAppName("DLWordCount").setMaster("local").set("spark.ui.port","7077")
+    val ssc =  new StreamingContext(sparkConf, Seconds(2))
+    ssc.checkpoint("checkpoint")
+    val stream = DLUtils.createDLStream(dlUriStr,ssc)
     val line = stream.flatMap(LogRecord => (new String(LogRecord.getPayload,UTF_8)).split(" ")).map(rec=> (rec,1)).reduceByKey(_+_)
     line.print()
     ssc.start()
