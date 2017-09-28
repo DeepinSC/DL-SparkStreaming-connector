@@ -46,7 +46,7 @@ class DLMultiInputDStream (dlUriStr: String,ssc:StreamingContext)extends InputDS
 
   val streams = getStreams
   current_streams_fromtxid = getTxidRange(streams,"first")
-
+  var isFirsttime:Boolean = true
 
   override def compute(validTime: Time): Option[DLMultiRDD] = {
 
@@ -59,8 +59,9 @@ class DLMultiInputDStream (dlUriStr: String,ssc:StreamingContext)extends InputDS
 
     val sc = context.sparkContext
     sc.setLogLevel("Error")
-    val rdd = new DLMultiRDD(sc,dlUriStr,current_streams_fromtxid,current_streams_untiltxid)
+    val rdd = new DLMultiRDD(sc,dlUriStr,current_streams_fromtxid,current_streams_untiltxid,isFirsttime)
     current_streams_fromtxid = current_streams_untiltxid
+    isFirsttime = false
     //println("******"+current_streams_untiltxid)
     Some(rdd)
   }
