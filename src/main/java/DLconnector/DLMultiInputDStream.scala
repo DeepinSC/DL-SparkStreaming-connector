@@ -12,10 +12,10 @@ import scala.collection.JavaConversions._
   */
 class DLMultiInputDStream (dlUriStr: String,ssc:StreamingContext)extends InputDStream[LogRecordWithDLSN](ssc){
 
-  var current_streams_untiltxid:Map[String,Long] = Map()
-  var current_streams_fromtxid:Map[String,Long] = Map()
+  var current_streams_untilDLSN:Map[String,String] = Map()
+  var current_streams_fromDLSN:Map[String,String] = Map()
 
-  def getTxidRange(streams:List[String],mode:String):Map[String,Long] = {
+  def getDLSNRange(streams:List[String]):Map[String,String] = {
     val uri: URI = URI.create(dlUriStr)
     val conf = new DistributedLogConfiguration()
     val namespace = DistributedLogNamespaceBuilder.newBuilder().conf(conf).uri(uri).build
@@ -24,11 +24,9 @@ class DLMultiInputDStream (dlUriStr: String,ssc:StreamingContext)extends InputDS
         val dlm = namespace.openLog(streamName)
         val record = {
           if(dlm.getLogRecordCount==0)
-            -1
-          else if(mode=="first")
-            dlm.getFirstTxId
+            "NULL"
           else
-            dlm.getLastTxId
+            dlm.getLastDLSN.serialize()
         }
         val stream_tuple = (streamName,record)
         stream_tuple
@@ -45,24 +43,17 @@ class DLMultiInputDStream (dlUriStr: String,ssc:StreamingContext)extends InputDS
   }
 
   val streams = getStreams
-  current_streams_fromtxid = getTxidRange(streams,"first")
-  var isFirsttime:Boolean = true
+  current_streams_fromDLSN = getDLSNRange(streams)
+  var isFirsttime:Boolean = false
 
   override def compute(validTime: Time): Option[DLMultiRDD] = {
 
-    //val uri: URI = URI.create(dlUriStr)
-    //val conf = new DistributedLogConfiguration()
-    //val namespace = DistributedLogNamespaceBuilder.newBuilder().conf(conf).uri(uri).build
-    //val streams = namespace.getLogs.toList//.asInstanceOf[Iterator[String]].toList
-
-    current_streams_untiltxid = getTxidRange(streams,"last")
-
+    current_streams_untilDLSN = getDLSNRange(streams)
     val sc = context.sparkContext
     sc.setLogLevel("Error")
-    val rdd = new DLMultiRDD(sc,dlUriStr,current_streams_fromtxid,current_streams_untiltxid,isFirsttime)
-    current_streams_fromtxid = current_streams_untiltxid
+    val rdd = new DLMultiRDD(sc,dlUriStr,current_streams_fromDLSN,current_streams_untilDLSN,isFirsttime)
+    current_streams_fromDLSN = current_streams_untilDLSN
     isFirsttime = false
-    //println("******"+current_streams_untiltxid)
     Some(rdd)
   }
 
