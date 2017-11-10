@@ -23,9 +23,11 @@ class DLMultiRDD(sc: SparkContext, dlUriStr: String, fromDLSNMap:Map[String,Stri
     /*Get partition info*/
     val part = split.asInstanceOf[DLMultiPartitions]
     val streamname = part.streamname
+    if ((part.startDLSN == "NULL"))
+      return Iterator.empty
     val fromDLSN = DLSN.deserialize(part.startDLSN)
     val untilDLSN = DLSN.deserialize(part.lastDLSN)
-    if ((fromDLSN == "NULL") || (fromDLSN.equals(untilDLSN)))
+    if (fromDLSN.equals(untilDLSN))
       Iterator.empty
     else{
       /*Open dlm*/

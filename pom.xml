@@ -25,17 +25,21 @@
         <version>0.3.51-RC1</version>
     </dependency>
 
-    <dependency>
-        <groupId>com.twitter</groupId>
-        <artifactId>distributedlog-client</artifactId>
-        <version>0.3.51-RC1</version>
-    </dependency>
+
+
+
 
     <!-- https://mvnrepository.com/artifact/com.google.guava/guava -->
     <dependency>
         <groupId>com.google.guava</groupId>
         <artifactId>guava</artifactId>
         <version>18.0</version>
+    </dependency>
+    <!-- https://mvnrepository.com/artifact/redis.clients/jedis -->
+    <dependency>
+        <groupId>redis.clients</groupId>
+        <artifactId>jedis</artifactId>
+        <version>2.9.0</version>
     </dependency>
 
 

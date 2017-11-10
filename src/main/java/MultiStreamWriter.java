@@ -3,11 +3,9 @@
  */
 import com.google.common.collect.Lists;
 import com.twitter.distributedlog.*;
-import com.twitter.distributedlog.client.DistributedLogMultiStreamWriter;
 import com.twitter.distributedlog.namespace.DistributedLogNamespace;
 import com.twitter.distributedlog.namespace.DistributedLogNamespaceBuilder;
-import com.twitter.distributedlog.service.DistributedLogClient;
-import com.twitter.distributedlog.service.DistributedLogClientBuilder;
+
 import com.twitter.distributedlog.util.FutureUtils;
 import com.twitter.finagle.thrift.ClientId$;
 import com.twitter.util.Future;

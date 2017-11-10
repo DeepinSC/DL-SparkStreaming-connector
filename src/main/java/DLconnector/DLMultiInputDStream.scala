@@ -32,6 +32,7 @@ class DLMultiInputDStream (dlUriStr: String,ssc:StreamingContext)extends InputDS
         stream_tuple
       }
     }
+    namespace.close()
     temp.toMap
   }
   def getStreams:List[String]={
@@ -39,6 +40,7 @@ class DLMultiInputDStream (dlUriStr: String,ssc:StreamingContext)extends InputDS
     val conf = new DistributedLogConfiguration()
     val namespace = DistributedLogNamespaceBuilder.newBuilder().conf(conf).uri(uri).build
     val streams = namespace.getLogs.toList
+    namespace.close()
     streams
   }
 
